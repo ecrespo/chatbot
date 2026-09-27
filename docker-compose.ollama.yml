@@ -1,0 +1,64 @@
+# ---------------------------------------------------------------------
+#  Override: runs Ollama next to the chatbot and pulls the model.
+#     docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
+#
+#  NVIDIA GPU: uncomment the `deploy` block (requires nvidia-container-toolkit).
+#  AMD GPU (ROCm): use the ollama/ollama:rocm image and the `devices` below.
+# ---------------------------------------------------------------------
+services:
+  ollama:
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-latest}
+    container_name: reflex-chatbot-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    # devices:            # AMD ROCm
+    #   - /dev/kfd
+    #   - /dev/dri
+
+  # One-shot job: pulls the model(s) the chatbot expects, then exits.
+  ollama-pull:
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-latest}
+    container_name: reflex-chatbot-ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      # Space-separated list; defaults to OLLAMA_MODEL from .env
+      OLLAMA_PULL_MODELS: ${OLLAMA_PULL_MODELS:-${OLLAMA_MODEL:-llama3.2}}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for model in $${OLLAMA_PULL_MODELS}; do
+          echo "pulling $$model"; ollama pull "$$model" || exit 1
+        done
+    restart: "no"
+
+  chatbot:
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+
+volumes:
+  ollama-models:

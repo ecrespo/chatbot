@@ -1,0 +1,23 @@
+# Never bake secrets into the image — pass them with --env-file / env_file
+.env
+.env.*
+!.env.example
+
+.git
+.github
+.idea
+.vscode
+.venv
+venv
+.web
+.states
+__pycache__
+**/__pycache__
+*.pyc
+*.log
+*.db
+Dockerfile*
+docker-compose*.yml
+compose*.yml
+Makefile
+docs

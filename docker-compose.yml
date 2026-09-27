@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------------
+#  Reflex chatbot
+#
+#  LLM on the host (Ollama / LM Studio / llama.cpp / OmniRoute) or OpenRouter:
+#     docker compose up -d
+#
+#  With Ollama inside compose (pulls the model automatically):
+#     docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d
+#
+#  Publish to Docker Hub:
+#     DOCKERHUB_USER=<user> docker compose build && docker compose push
+# ---------------------------------------------------------------------
+name: reflex-chatbot
+
+services:
+  chatbot:
+    image: ${DOCKERHUB_USER:-ecrespo}/reflex-chatbot:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reflex-chatbot
+    restart: unless-stopped
+    ports:
+      # Frontend and backend share one port. Keep the same number on both
+      # sides or set REFLEX_API_URL (see docs/DOCKER.md).
+      - "${PORT:-3000}:${PORT:-3000}"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: ${PORT:-3000}
+      REFLEX_API_URL: ${REFLEX_API_URL:-}
+      # Inside the container `localhost` is the container itself: servers
+      # running on your machine are reached through host.docker.internal.
+      OLLAMA_BASE_URL: ${DOCKER_OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      LMSTUDIO_BASE_URL: ${DOCKER_LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
+      LLAMACPP_BASE_URL: ${DOCKER_LLAMACPP_BASE_URL:-http://host.docker.internal:8080/v1}
+      OMNIROUTE_BASE_URL: ${DOCKER_OMNIROUTE_BASE_URL:-http://host.docker.internal:20128/v1}
+    extra_hosts:
+      # Linux: makes host.docker.internal point at the host
+      - "host.docker.internal:host-gateway"
