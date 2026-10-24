@@ -174,6 +174,10 @@ docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
 make docker-buildx DOCKERHUB_USER=<your_user>        # amd64 + arm64
 ```
 
+On an amd64 machine the arm64 half runs under QEMU and the frontend prerender may
+time out; the release workflow avoids this by building each architecture on a
+native runner and joining them with `docker buildx imagetools create`.
+
 With compose: `DOCKERHUB_USER=<your_user> IMAGE_TAG=0.1.0 docker compose build && docker compose push chatbot`.
 
 ## 6. Diagnostics
