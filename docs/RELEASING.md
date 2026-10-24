@@ -16,6 +16,7 @@ plus a GitHub release with the distribution files and generated notes.
 | `quality.yml` | push / PR to `main`, `develop` | ruff, `uv lock --check`, pytest, builds the wheel and compiles the app from it, validates every compose profile, builds the image and checks `/ping` |
 | `security.yml` | push / PR, weekly | gitleaks, bandit, pip-audit, hadolint, CodeQL, dependency review (PRs) |
 | `release.yml` | tag `vX.Y.Z` | quality + security → build → **PyPI** and **Docker Hub** (amd64 and arm64 on native runners, joined in one manifest) in parallel → GitHub release |
+| `dockerhub-description.yml` | push to `main` touching `docs/DOCKER.md` | updates the Docker Hub description |
 | Dependabot | weekly | PRs to `develop` for `uv.lock`, the Docker base images, compose images and GitHub Actions |
 
 `release.yml` refuses to publish when the tag is not on `main` or when the tag,
@@ -33,9 +34,9 @@ release creates the project):
 - Environment: `pypi`
 
 **Docker Hub.** Create a personal access token at
-<https://app.docker.com/settings/personal-access-tokens> with *Read & Write*
-scope (*Read, Write & Delete* also lets the workflow update the repository
-description from `docs/DOCKER.md`).
+<https://app.docker.com/settings/personal-access-tokens> with *Read, Write &
+Delete* scope: pushing images needs *Read & Write*, and updating the repository
+description from `docs/DOCKER.md` needs *Delete* as well.
 
 **GitHub.** *Settings → Environments*: create `pypi` and `dockerhub` (optionally with
 required reviewers or restricted to tags `v*`). In `dockerhub` add the secrets:
