@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "reflex-chatbot"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reflex chatbot (reflex-assistant-ui) for Ollama, LM Studio, llama.cpp, OpenRouter and OmniRoute"
 readme = "README.md"
 license = "MIT"

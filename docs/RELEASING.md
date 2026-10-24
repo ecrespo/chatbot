@@ -15,7 +15,7 @@ plus a GitHub release with the distribution files and generated notes.
 | --- | --- | --- |
 | `quality.yml` | push / PR to `main`, `develop` | ruff, `uv lock --check`, pytest, builds the wheel and compiles the app from it, validates every compose profile, builds the image and checks `/ping` |
 | `security.yml` | push / PR, weekly | gitleaks, bandit, pip-audit, hadolint, CodeQL, dependency review (PRs) |
-| `release.yml` | tag `vX.Y.Z` | quality + security → build → **PyPI** and **Docker Hub** in parallel → GitHub release |
+| `release.yml` | tag `vX.Y.Z` | quality + security → build → **PyPI** and **Docker Hub** (amd64 and arm64 on native runners, joined in one manifest) in parallel → GitHub release |
 | Dependabot | weekly | PRs to `develop` for `uv.lock`, the Docker base images, compose images and GitHub Actions |
 
 `release.yml` refuses to publish when the tag is not on `main` or when the tag,
