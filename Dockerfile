@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1.7
 # ---------------------------------------------------------------------
-#  Reflex chatbot — production image
-#  Build:  docker build -t <user>/reflex-chatbot:latest .
-#  Run:    docker run --rm -p 3000:3000 --env-file .env \
-#            -e OLLAMA_BASE_URL=http://host.docker.internal:11434/v1 \
+#  Reflex chatbot — production image (Docker Hub: ecrespo/reflex-chatbot)
+#  Build:  make docker-build      (or: docker build -t ecrespo/reflex-chatbot .)
+#  Run:    docker compose up -d   (see docker-compose.yml and docs/DOCKER.md)
+#          docker run --rm -p 3000:3000 --env-file .env \
 #            --add-host host.docker.internal:host-gateway \
-#            <user>/reflex-chatbot:latest
+#            ecrespo/reflex-chatbot:latest
+#  Releases are built for amd64 + arm64 by .github/workflows/release.yml.
 # ---------------------------------------------------------------------
 ARG PYTHON_VERSION=3.13
 ARG UV_VERSION=0.12
@@ -54,6 +55,8 @@ RUN reflex export --frontend-only --no-zip --loglevel warning \
 
 EXPOSE 3000
 
+# Shell form on purpose: ${PORT} is expanded at run time.
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${PORT}/ping" || exit 1
 

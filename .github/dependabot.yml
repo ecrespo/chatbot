@@ -1,0 +1,38 @@
+# Dependency updates: weekly PRs against `develop`, grouped to keep the noise low.
+# Python (uv.lock), the Docker base images and the pinned GitHub Actions.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: docker-compose
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]

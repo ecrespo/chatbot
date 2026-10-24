@@ -1,14 +1,64 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
 [project]
-name = "chatbot"
+name = "reflex-chatbot"
 version = "0.1.0"
 description = "Reflex chatbot (reflex-assistant-ui) for Ollama, LM Studio, llama.cpp, OpenRouter and OmniRoute"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
+authors = [{ name = "Ernesto Crespo", email = "ecrespo@gmail.com" }]
+keywords = ["reflex", "chatbot", "llm", "ollama", "lm-studio", "llama.cpp", "openrouter", "assistant-ui"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Communications :: Chat",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
-    "reflex>=0.9.12",
+    "reflex>=0.10.0",
     "reflex-assistant-ui>=0.1.0",
     "openai>=1.60",
     "python-dotenv>=1.0",
+]
+
+[project.scripts]
+reflex-chatbot = "reflex_chatbot.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ecrespo/chatbot"
+Repository = "https://github.com/ecrespo/chatbot"
+Issues = "https://github.com/ecrespo/chatbot/issues"
+"Docker Hub" = "https://hub.docker.com/r/ecrespo/reflex-chatbot"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.9"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["reflex_chatbot"]
+
+# Files `reflex-chatbot init` copies into the app directory.
+[tool.hatch.build.targets.wheel.force-include]
+"rxconfig.py" = "reflex_chatbot/_app/rxconfig.py"
+".env.example" = "reflex_chatbot/_app/env.example"
+"assets/favicon.ico" = "reflex_chatbot/_app/assets/favicon.ico"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "reflex_chatbot",
+    "assets/favicon.ico",
+    "tests",
+    "rxconfig.py",
+    ".env.example",
+    "README.md",
+    "LICENSE",
 ]
 
 [tool.ruff]
@@ -17,3 +67,6 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

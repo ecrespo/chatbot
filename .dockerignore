@@ -21,3 +21,7 @@ docker-compose*.yml
 compose*.yml
 Makefile
 docs
+tests
+dist
+.ruff_cache
+.pytest_cache
