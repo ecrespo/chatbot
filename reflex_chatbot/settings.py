@@ -27,10 +27,15 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-# Load `.env` from the project root. Variables already present in the process
+# Load `.env` from the working directory (the app directory when installed from
+# PyPI) or the project root. Variables already present in the process
 # environment (docker `environment:`, `export FOO=…`) win over the file.
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(os.environ.get("CHATBOT_ENV_FILE") or _PROJECT_ROOT / ".env", override=False)
+_ENV_FILE = os.environ.get("CHATBOT_ENV_FILE") or next(
+    (p for p in (Path.cwd() / ".env", _PROJECT_ROOT / ".env") if p.is_file()), None
+)
+if _ENV_FILE:
+    load_dotenv(_ENV_FILE, override=False)
 
 __all__ = [
     "PROVIDER_PRESETS",

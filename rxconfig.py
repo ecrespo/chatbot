@@ -8,7 +8,7 @@ behind a reverse proxy on a different host or port.
 import reflex as rx
 
 config = rx.Config(
-    app_name="chatbot",
+    app_name="reflex_chatbot",
     plugins=[
         rx.plugins.SitemapPlugin(),
         rx.plugins.TailwindV4Plugin(),

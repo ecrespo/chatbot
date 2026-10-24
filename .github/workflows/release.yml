@@ -1,0 +1,167 @@
+name: Release
+
+# Push a tag like `v0.2.0` on main (`make bump VERSION=0.2.0` → merge → `make release`)
+# to publish the same version to PyPI and Docker Hub and create the GitHub release.
+#
+# One-time setup (see docs/RELEASING.md):
+#   - PyPI: Trusted Publisher for this repo, workflow `release.yml`, environment `pypi`.
+#   - Docker Hub: environment `dockerhub` with secrets DOCKERHUB_USERNAME and
+#     DOCKERHUB_TOKEN (Read & Write; Read, Write & Delete also updates the description).
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UV_PYTHON_PREFERENCE: only-managed
+  IMAGE_NAME: reflex-chatbot
+
+jobs:
+  quality:
+    uses: ./.github/workflows/quality.yml
+
+  security:
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+
+  build:
+    name: Build distribution
+    needs: [quality, security]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          python-version: "3.13"
+      - name: Tag is on main
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::tag ${GITHUB_REF_NAME} does not point to a commit on main"; exit 1; }
+      - name: Tag matches the package version
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          project=$(uv run --no-project python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          module=$(sed -nE 's/^__version__ = "([^"]+)"/\1/p' reflex_chatbot/__init__.py)
+          echo "tag=$tag pyproject=$project __version__=$module"
+          [ "$tag" = "$project" ] && [ "$tag" = "$module" ] \
+            || { echo "::error::tag, pyproject.toml and __version__ must match"; exit 1; }
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+      - name: Build sdist and wheel
+        run: uv build
+      - name: twine check
+        run: uvx twine check --strict dist/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/reflex-chatbot/${{ needs.build.outputs.version }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  publish-docker:
+    name: Publish to Docker Hub
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: dockerhub
+      url: https://hub.docker.com/r/${{ vars.DOCKERHUB_NAMESPACE || 'ecrespo' }}/reflex-chatbot
+    env:
+      IMAGE: docker.io/${{ vars.DOCKERHUB_NAMESPACE || 'ecrespo' }}/reflex-chatbot
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          # vX.Y.Z → X.Y.Z, X.Y and latest; pre-releases (rc/a/b) only get their own tag.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          flavor: latest=auto
+      - name: Build and push (amd64 + arm64)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Update the Docker Hub description
+        # Needs a token with Read, Write & Delete scope; a failure here does not undo the push.
+        continue-on-error: true
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_NAMESPACE || 'ecrespo' }}/reflex-chatbot
+          short-description: Reflex chatbot for Ollama, LM Studio, llama.cpp, OpenRouter and OmniRoute
+          readme-filepath: docs/DOCKER.md
+          enable-url-completion: true
+
+  github-release:
+    name: GitHub release
+    needs: [publish-pypi, publish-docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Create release with the distribution files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flags=()
+          # v1.2.0rc1, v1.2.0a1, v1.2.0b1 … are marked as pre-releases.
+          if [[ "$GITHUB_REF_NAME" =~ (a|b|rc)[0-9]+$ ]]; then flags+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            "${flags[@]}"

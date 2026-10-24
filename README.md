@@ -22,11 +22,36 @@ Features:
   whether it arrives as `reasoning_content`, `reasoning` or `<think>` tags.
 - Message editing and regeneration with conversation **branches**, markdown, syntax-highlighted code, 👍/👎.
 - Fully configured through **`.env`**; API keys never leave the server.
-- **Docker image** ready for Docker Hub, plus `docker compose` (with optional Ollama).
+- Published on **PyPI** (`pip install reflex-chatbot`) and **Docker Hub**
+  (`ecrespo/reflex-chatbot`, amd64 + arm64); one `docker compose` file with
+  profiles for an optional Ollama (CPU or NVIDIA GPU).
 
 ---
 
-## Quick start (local Ollama)
+## Install from PyPI
+
+```bash
+pip install reflex-chatbot          # or: uv tool install reflex-chatbot
+reflex-chatbot init my-chat         # creates my-chat/{rxconfig.py,.env,assets/}
+cd my-chat && $EDITOR .env          # provider, models, keys
+reflex-chatbot run                  # production, one port → http://localhost:3000
+```
+
+`reflex-chatbot run --dev` starts the hot-reload server, `--port` changes the port.
+The first run downloads bun and the frontend packages (Reflex needs `unzip`).
+
+## Run with Docker
+
+```bash
+curl -O https://raw.githubusercontent.com/ecrespo/chatbot/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/ecrespo/chatbot/main/.env.example
+docker compose up -d                       # LLM on your machine or OpenRouter
+docker compose --profile ollama up -d      # + Ollama in compose
+```
+
+See [Docker](#docker) below.
+
+## Quick start from source (local Ollama)
 
 Requirements: Python ≥ 3.13, [uv](https://docs.astral.sh/uv/) and Ollama.
 
@@ -49,7 +74,7 @@ Production mode on a single port (the same thing the Docker image does):
 uv run reflex run --env prod --single-port --backend-port 3000
 ```
 
-With `make`: `make install`, `make dev`, `make prod` (`make help` lists every target).
+With `make`: `make install`, `make dev`, `make prod`, `make check` (`make help` lists every target).
 
 ---
 
@@ -58,14 +83,14 @@ With `make`: `make install`, `make dev`, `make prod` (`make help` lists every ta
 ```mermaid
 flowchart LR
     B[Browser<br/>assistant-ui] <-- WebSocket --> S[Reflex backend<br/>ChatState]
-    S --> L[chatbot/llm.py<br/>async OpenAI client]
+    S --> L[reflex_chatbot/llm.py<br/>async OpenAI client]
     L -->|/v1/chat/completions| O[Ollama]
     L --> M[LM Studio]
     L --> C[llama.cpp]
     L --> R[OpenRouter]
     L --> X[OmniRoute]
     L --> Y[Custom]
-    L <-->|tool calls| T[chatbot/tools.py]
+    L <-->|tool calls| T[reflex_chatbot/tools.py]
 ```
 
 Every provider speaks the same protocol (OpenAI Chat Completions), so a single
@@ -73,12 +98,13 @@ client (`openai.AsyncOpenAI`) covers all of them. A "provider" is just a base UR
 an API key, a default model and optional extras, all defined in `.env`.
 
 ```
-chatbot/
-├── chatbot.py   # page: header, provider/model toolbar, chat
-├── state.py     # ChatState (AssistantUIState + provider/model selection)
-├── llm.py       # streaming, tool-calling loop, reasoning normalisation
-├── tools.py     # tools in OpenAI function-calling format
-└── settings.py  # .env loading and provider presets
+reflex_chatbot/
+├── reflex_chatbot.py  # page: header, provider/model toolbar, chat
+├── cli.py             # `reflex-chatbot` command (PyPI install)
+├── state.py           # ChatState (AssistantUIState + provider/model selection)
+├── llm.py             # streaming, tool-calling loop, reasoning normalisation
+├── tools.py           # tools in OpenAI function-calling format
+└── settings.py        # .env loading and provider presets
 ```
 
 ---
@@ -161,51 +187,58 @@ OMNIROUTE_MODEL=auto
   When the provider does not answer, a banner explains why and how to start it.
 - On messages: copy, regenerate (creates a branch), edit your own messages (creates a branch) and 👍/👎.
 
-The UI labels are in Spanish; change them in `chatbot/chatbot.py` and the `APP_*` variables.
+The UI labels are in Spanish; change them in `reflex_chatbot/reflex_chatbot.py` and the `APP_*` variables.
 
 ---
 
 ## Docker
 
-Summary (details in **[docs/DOCKER.md](docs/DOCKER.md)**):
+Summary (details in **[docs/DOCKER.md](docs/DOCKER.md)**). A single
+`docker-compose.yml` with profiles for the optional services:
 
 ```bash
 cp .env.example .env
 
-# LLM running on your machine (Ollama, LM Studio, llama.cpp, OmniRoute) or OpenRouter
-docker compose up -d --build                 # → http://localhost:3000
-
-# Ollama inside compose, pulling OLLAMA_PULL_MODELS
-docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+docker compose up -d                         # chatbot only: LLM on your machine or OpenRouter
+docker compose --profile ollama up -d        # + Ollama (CPU), pulls OLLAMA_PULL_MODELS
+docker compose --profile ollama-gpu up -d    # + Ollama on an NVIDIA GPU
+docker compose --profile '*' down            # stop everything
 ```
+
+Same with make: `make up`, `make up-ollama`, `make up-gpu`, `make down`. Or set
+`COMPOSE_PROFILES=ollama` in `.env`. `up` pulls `ecrespo/reflex-chatbot`; add
+`--build` to build from the checkout.
 
 Inside the container `localhost` is the container itself, so `docker-compose.yml`
 rewrites the local URLs to `host.docker.internal` (`DOCKER_*_BASE_URL` variables).
-On Linux the host server must listen on `0.0.0.0`, e.g. `OLLAMA_HOST=0.0.0.0:11434`.
+The Ollama URL is chosen automatically: the compose `ollama` service when a profile
+enables it, the host otherwise. On Linux the host server must listen on `0.0.0.0`,
+e.g. `OLLAMA_HOST=0.0.0.0:11434`.
 
-### Publishing to Docker Hub
+To update a deployment: `docker compose pull && docker compose up -d`.
 
-```bash
-docker login
-make docker-push DOCKERHUB_USER=<your_user>          # :latest and :<version>
-make docker-buildx DOCKERHUB_USER=<your_user>        # multi-arch amd64 + arm64
-```
+---
 
-Or with compose: `DOCKERHUB_USER=<your_user> docker compose build && docker compose push`.
-The `.github/workflows/docker-publish.yml` workflow publishes automatically when a
-`v*` tag is pushed (secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`).
-
-To run the published image on another machine you only need `docker-compose.yml` and a `.env`:
+## Development, releases and updates
 
 ```bash
-docker compose pull && docker compose up -d
+make install          # uv sync + .env
+make check            # ruff + pytest (CI also builds the wheel and the image)
+make update           # upgrade uv.lock and re-run the checks
+make bump VERSION=0.2.0 && make release   # see docs/RELEASING.md
 ```
+
+Pushing a `vX.Y.Z` tag on `main` runs `.github/workflows/release.yml`, which
+publishes the package to **PyPI** (Trusted Publishing) and the multi-arch image to
+**Docker Hub**, then creates the GitHub release. Dependabot keeps `uv.lock`, the
+base images and the GitHub Actions up to date. Setup and the full process are in
+**[docs/RELEASING.md](docs/RELEASING.md)**.
 
 ---
 
 ## Extending
 
-**New tool** — in `chatbot/tools.py`:
+**New tool** — in `reflex_chatbot/tools.py`:
 
 ```python
 @tool(
@@ -220,7 +253,7 @@ async def get_weather(city: str) -> dict:
 It is sent to the models automatically, and its call and result are rendered in the chat.
 
 **New named provider** — add an entry to `PROVIDER_PRESETS` in
-`chatbot/settings.py` (key, variable prefix, label, default URL) and add its key
+`reflex_chatbot/settings.py` (key, variable prefix, label, default URL) and add its key
 to `LLM_ENABLED_PROVIDERS`. For a one-off endpoint, `CUSTOM_*` is enough.
 
 ---

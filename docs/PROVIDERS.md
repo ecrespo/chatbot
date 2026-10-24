@@ -58,7 +58,7 @@ Notes:
   which is shown collapsed. `LLM_REASONING_EFFORT=low|medium|high|none` controls it.
 - **Ollama on another machine**: `OLLAMA_BASE_URL=http://192.168.1.50:11434/v1`, and on that
   machine `OLLAMA_HOST=0.0.0.0:11434`.
-- **Ollama in Docker next to the chatbot**: `docker-compose.ollama.yml` (see [DOCKER.md](DOCKER.md)).
+- **Ollama in Docker next to the chatbot**: `docker compose --profile ollama up -d` (see [DOCKER.md](DOCKER.md)).
 
 ---
 
@@ -221,7 +221,7 @@ Example base URLs:
 | DeepSeek | `https://api.deepseek.com/v1` |
 
 If you need several of them at once under their own names, add entries to
-`PROVIDER_PRESETS` in `chatbot/settings.py` (see README → *Extending*).
+`PROVIDER_PRESETS` in `reflex_chatbot/settings.py` (see README → *Extending*).
 
 ---
 
