@@ -1,0 +1,32 @@
+name: Docker Hub description
+
+# Keeps the Docker Hub repository page in sync with docs/DOCKER.md between releases.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/DOCKER.md
+      - .github/workflows/dockerhub-description.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  description:
+    name: Update description
+    runs-on: ubuntu-latest
+    environment: dockerhub
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_NAMESPACE || 'ecrespo' }}/reflex-chatbot
+          short-description: Reflex chatbot for Ollama, LM Studio, llama.cpp, OpenRouter and OmniRoute
+          readme-filepath: docs/DOCKER.md
+          enable-url-completion: true

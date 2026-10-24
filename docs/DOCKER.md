@@ -19,6 +19,7 @@ Files:
 | `docker-compose.yml` | The chatbot plus optional Ollama services, selected with **profiles** |
 | `Makefile` | Shortcuts: `up`, `up-ollama`, `up-gpu`, `down`, `docker-build`, `docker-push`, `docker-buildx`… |
 | `.github/workflows/release.yml` | Publishes to Docker Hub (and PyPI) when a `vX.Y.Z` tag is pushed |
+| `.github/workflows/dockerhub-description.yml` | Syncs this page to the Docker Hub description when it changes on `main` |
 
 ---
 
@@ -161,7 +162,11 @@ With an Ollama profile, pass the same `--profile` (or keep `COMPOSE_PROFILES` in
 
 Releases are published automatically by `.github/workflows/release.yml` when a
 `vX.Y.Z` tag is pushed, together with the PyPI package — see
-**[RELEASING.md](RELEASING.md)**.
+**[RELEASING.md](RELEASING.md)**. The workflow logs in with the `DOCKERHUB_TOKEN`
+secret (a personal access token with *Read, Write & Delete* scope), pushes the
+`X.Y.Z`, `X.Y` and `latest` tags and updates the repository description from this
+file. Edits to this page merged into `main` are synced to Docker Hub by
+`.github/workflows/dockerhub-description.yml`.
 
 Manual publishing (e.g. from a fork):
 
@@ -178,7 +183,7 @@ On an amd64 machine the arm64 half runs under QEMU and the frontend prerender ma
 time out; the release workflow avoids this by building each architecture on a
 native runner and joining them with `docker buildx imagetools create`.
 
-With compose: `DOCKERHUB_USER=<your_user> IMAGE_TAG=0.1.0 docker compose build && docker compose push chatbot`.
+With compose: `DOCKERHUB_USER=<your_user> IMAGE_TAG=0.1.1 docker compose build && docker compose push chatbot`.
 
 ## 6. Diagnostics
 
