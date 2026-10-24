@@ -108,7 +108,8 @@ docker compose --profile ollama-gpu up -d    # NVIDIA GPU (nvidia-container-tool
 ```
 
 - `ollama` / `ollama-gpu` store models in the `ollama-models` volume and publish `11434`
-  (`OLLAMA_PORT` to change it). Both answer to the DNS name `ollama`.
+  **on 127.0.0.1 only**, since Ollama has no authentication (`OLLAMA_PORT` changes the
+  port, `OLLAMA_BIND=0.0.0.0` exposes it to the network). Both answer to the DNS name `ollama`.
 - `ollama-pull` waits until Ollama is healthy, pulls `OLLAMA_PULL_MODELS` and exits.
   After a new pull, press **Modelos** in the UI.
 - The chatbot waits for Ollama's healthcheck and uses `http://ollama:11434/v1`

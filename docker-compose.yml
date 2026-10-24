@@ -22,7 +22,9 @@ x-ollama: &ollama
   volumes:
     - ollama-models:/root/.ollama
   ports:
-    - "${OLLAMA_PORT:-11434}:11434"
+    # Ollama has no authentication: published on localhost only. The chatbot
+    # uses the internal network. OLLAMA_BIND=0.0.0.0 exposes it to the LAN.
+    - "${OLLAMA_BIND:-127.0.0.1}:${OLLAMA_PORT:-11434}:11434"
   environment:
     OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
   healthcheck:
